@@ -1,51 +1,67 @@
 from selenium import webdriver
-from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.common.by import By
+from selenium.webdriver.chrome.options import Options
+from selenium.common.exceptions import NoSuchElementException, TimeoutException
 import time
 """
 Automatically connect with contacts availables in "My Network"
 """
 
 
-def login():
-    username = ''  # -------MAIL ID----------
-    password = ''  # -------PASSWORD---------
+class LinkedinAutoconnector:
 
-    driver = webdriver.Chrome('/usr/local/bin/chromedriver')  # path to chromedriver
-    driver.get('https://linkedin.com/')
+    def __init__(self, headless=False, executable_path='/usr/local/bin/chromedriver', limit=100):
+        self.headless_browser = headless
+        self.driver = self._start_selenium()
+        self.limit = limit
+        self.wait = WebDriverWait(self.driver, 4)   # TODO
 
-    driver.find_element_by_id('login-email').send_keys(username)
-    driver.find_element_by_id('login-password').send_keys(password)
-    driver.find_element_by_id('login-submit').click()
-    return driver
+    def _start_selenium(self):
+        chrome_options = Options()
+        if self.headless_browser:
+            chrome_options.add_argument('--headless')
+            chrome_options.add_argument('--no-sandbox')
 
+            # replaces browser User Agent from "HeadlessChrome".
+            user_agent = "Chrome"
+            chrome_options.add_argument('user-agent={user_agent}'.format(user_agent=user_agent))
 
-def connector(driver):
-    count = 0
-    connect_list = driver.find_elements_by_class_name("artdeco-button__text")
-    for list_item in connect_list:
-        try:
-            if (list_item.text in ["Follow", "Connect"]):
-                list_item.click()
-                count += 1
-        except Exception:
-            pass
+        return webdriver.Chrome(chrome_options=chrome_options)
 
-    return count
+    def login(self, user=None, password=None):
 
+        self.driver.get('https://www.linkedin.com/login?trk=guest_homepage-basic_nav-header-signin')
 
-def main():
-    driver = login()
-    count = 0
-    """
-    limit 100 connects to avoid temporary invite ban
-    """
-    while count < 100:
+        self.driver.find_element_by_id('username').send_keys(user)
+        self.driver.find_element_by_id('password').send_keys(password)
+        self.driver.find_element_by_xpath('//button[@type="submit"]').click()
+
+    def connector(self):
+        count = 0
         search_url = "https://www.linkedin.com/mynetwork/"
-        driver.get(search_url)
-        count += connector(driver)
+        self.driver.get(search_url)
+        connect_list = self.driver.find_elements_by_xpath('//button[@data-control-name="invite"]')
+        for list_item in connect_list:
+            try:
+                if (list_item.text in ["Follow", "Connect"]):
+                    list_item.click()
+                    count += 1
+            except Exception:
+                pass
 
-    driver.quit()
+        return count
+
+    def send_invites(self):
+        count = 0
+        while count < self.limit:
+            count += self.connector()
+
+        driver.quit()
 
 
 if __name__ == '__main__':
-    main()
+    bot = LinkedinAutoconnector()
+    bot.login("user", "pass")
+    bot.send_invites()
